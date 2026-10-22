@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @open2figma/schema -w @open2figma/extractor -w @open2figma/cli -w @open2figma/figma-plugin",
+    "build": "tsc -b packages/schema packages/extractor packages/cli packages/figma-plugin && node packages/extractor/build-walker.mjs && node packages/figma-plugin/build.mjs",
     "test": "vitest run",
     "typecheck": "tsc -b packages/schema packages/extractor packages/cli packages/figma-plugin",
     "capture:example": "node packages/cli/dist/index.js capture examples/landing/index.html -o examples/landing/landing.o2f.json --viewport 1280x900"

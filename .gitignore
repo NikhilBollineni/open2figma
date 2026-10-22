@@ -3,3 +3,4 @@ dist/
 *.o2f.json
 !examples/**/*.o2f.json
 .DS_Store
+*.tsbuildinfo
