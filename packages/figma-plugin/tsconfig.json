@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/types",
+    "rootDir": "src",
+    "lib": ["ES2022"],
+    "types": ["@figma/plugin-typings"],
+    "emitDeclarationOnly": true,
+    "noEmit": false
+  },
+  "include": ["src"],
+  "references": [{ "path": "../schema" }]
+}

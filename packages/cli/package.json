@@ -1,0 +1,20 @@
+{
+  "name": "@open2figma/cli",
+  "version": "0.1.0",
+  "description": "open2figma command line: capture pages and Storybooks into O2F documents and serve them to the Figma plugin.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "open2figma": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@open2figma/extractor": "0.1.0",
+    "@open2figma/schema": "0.1.0",
+    "commander": "^15.0.0"
+  }
+}

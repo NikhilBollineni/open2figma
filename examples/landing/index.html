@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Northwind — Ship faster</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --color-brand: #4f46e5;
+    --color-brand-dark: #3730a3;
+    --color-ink: #0f172a;
+    --color-muted: #64748b;
+    --color-surface: #ffffff;
+    --color-canvas: #f8fafc;
+    --color-border: #e2e8f0;
+    --radius-md: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --font-sans: Inter, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font-sans); color: var(--color-ink); background: var(--color-canvas); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  nav { display: flex; gap: 28px; }
+  nav a { color: var(--color-muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 18px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none; border: 0; cursor: pointer; }
+  .btn-primary { background: var(--color-brand); color: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2); }
+  .btn-ghost { background: transparent; color: var(--color-ink); border: 1px solid var(--color-border); }
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; padding: 96px 48px; }
+  .hero h1 { font-size: 52px; line-height: 1.1; margin: 0 0 20px; letter-spacing: -0.02em; }
+  .hero h1 em { font-style: normal; color: var(--color-brand); }
+  .hero p { font-size: 18px; line-height: 1.6; color: var(--color-muted); margin: 0 0 32px; max-width: 480px; }
+  .hero .actions { display: flex; gap: 12px; }
+  .hero-card { background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%); border-radius: 24px; height: 360px; position: relative; overflow: hidden; }
+  .hero-card .badge { position: absolute; top: 24px; left: 24px; background: rgba(255,255,255,0.18); color: #fff; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .hero-card img { position: absolute; right: 32px; bottom: 32px; width: 160px; height: 160px; border-radius: 16px; object-fit: cover; }
+  .features { padding: 0 48px 96px; }
+  .features h2 { font-size: 32px; margin: 0 0 8px; text-align: center; }
+  .features .lede { text-align: center; color: var(--color-muted); margin: 0 0 48px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-6); display: flex; flex-direction: column; gap: 12px; }
+  .card .icon { width: 40px; height: 40px; border-radius: 10px; background: #eef2ff; display: flex; align-items: center; justify-content: center; color: var(--color-brand); }
+  .card h3 { margin: 0; font-size: 18px; }
+  .card p { margin: 0; color: var(--color-muted); font-size: 14px; line-height: 1.6; }
+  .card a { color: var(--color-brand); font-weight: 600; font-size: 14px; text-decoration: none; }
+  .pricing { background: var(--color-ink); color: #fff; padding: 80px 48px; }
+  .pricing-inner { display: flex; gap: 48px; align-items: flex-start; }
+  .pricing h2 { font-size: 32px; margin: 0 0 16px; }
+  .pricing ul { margin: 0; padding-left: 20px; color: #cbd5e1; line-height: 1.8; }
+  .plan { margin-left: auto; width: 320px; background: #1e293b; border-radius: 16px; padding: 28px; }
+  .plan .price { font-size: 44px; font-weight: 700; }
+  .plan .price span { font-size: 16px; font-weight: 400; color: #94a3b8; }
+  .plan .btn { width: 100%; margin-top: 20px; }
+  form.signup { display: flex; gap: 8px; margin-top: 24px; }
+  form.signup input { flex: 1; height: 40px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; padding: 0 12px; font: inherit; }
+  footer { padding: 32px 48px; display: flex; justify-content: space-between; color: var(--color-muted); font-size: 13px; }
+  @media (max-width: 768px) {
+    header { padding: 16px 20px; }
+    nav { display: none; }
+    .hero { grid-template-columns: 1fr; padding: 48px 20px; gap: 32px; }
+    .hero h1 { font-size: 36px; }
+    .features { padding: 0 20px 64px; }
+    .grid { grid-template-columns: 1fr; }
+    .pricing { padding: 48px 20px; }
+    .pricing-inner { flex-direction: column; }
+    .plan { margin-left: 0; width: 100%; }
+    footer { flex-direction: column; gap: 8px; padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="28" rx="8" fill="#4f46e5"/><path d="M8 18l6-8 6 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Northwind
+    </div>
+    <nav><a href="#">Product</a><a href="#">Pricing</a><a href="#">Docs</a><a href="#">Changelog</a></nav>
+    <div class="actions" style="display:flex;gap:10px">
+      <a class="btn btn-ghost" href="#">Sign in</a>
+      <a class="btn btn-primary" href="#">Start free</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Ship product <em>twice as fast</em> with one source of truth</h1>
+      <p>Northwind keeps your design system, docs and code in sync so nobody has to redraw a button ever again.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#">Get started</a>
+        <a class="btn btn-ghost" href="#">Watch the demo</a>
+      </div>
+    </div>
+    <div class="hero-card">
+      <span class="badge">New in 2.0</span>
+      <img src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='160' height='160' fill='%23fde68a'/%3E%3Ccircle cx='80' cy='80' r='48' fill='%23f59e0b'/%3E%3C/svg%3E" alt="Illustration" />
+    </div>
+  </section>
+
+  <section class="features">
+    <h2>Everything your team needs</h2>
+    <p class="lede">Three pillars, one workflow.</p>
+    <div class="grid">
+      <article class="card" data-testid="feature-card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="10" r="8"/></svg></div>
+        <h3>Design tokens</h3>
+        <p>Colors, spacing and type scale flow from CSS variables straight into Figma variables.</p>
+        <a href="#">Learn more →</a>
+      </article>
+      <article class="card" data-testid="feature-card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect x="3" y="3" width="14" height="14" rx="3"/></svg></div>
+        <h3>Real auto-layout</h3>
+        <p>Flex and grid become auto-layout frames you can actually resize, not pixel soup.</p>
+        <a href="#">Learn more →</a>
+      </article>
+      <article class="card" data-testid="feature-card">
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2l8 14H2z"/></svg></div>
+        <h3>Components</h3>
+        <p>Repeated elements are detected and turned into one component with instances.</p>
+        <a href="#">Learn more →</a>
+      </article>
+    </div>
+  </section>
+
+  <section class="pricing">
+    <div class="pricing-inner">
+      <div>
+        <h2>Simple pricing</h2>
+        <ul>
+          <li>Unlimited captures</li>
+          <li>Storybook and CI integration</li>
+          <li>Self-host the bridge</li>
+        </ul>
+        <form class="signup">
+          <input type="email" placeholder="you@company.com" />
+          <button class="btn btn-primary" type="submit">Notify me</button>
+        </form>
+      </div>
+      <div class="plan">
+        <div style="font-size:14px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Team</div>
+        <div class="price">$29<span>/seat/mo</span></div>
+        <p style="color:#cbd5e1;margin:12px 0 0">Everything in Free plus SSO, audit log and priority support.</p>
+        <a class="btn btn-primary" href="#">Choose Team</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>© 2026 Northwind Labs</span>
+    <span>Privacy · Terms · Status</span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Example: keep a Figma-ready capture of your deployed app on every push.
+# Download the artifact and drop it on the open2figma plugin, or point
+# `open2figma serve` at it on a shared machine.
+name: design-sync
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL to capture
+        default: https://staging.example.com
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Capture
+        run: |
+          node packages/cli/dist/index.js capture "${{ github.event.inputs.url || 'https://staging.example.com' }}" \
+            --viewport "Desktop=1440x900,Tablet=834x1194,Mobile=390x844" \
+            --header "Authorization=Bearer ${{ secrets.PREVIEW_TOKEN }}" \
+            -o out/design.o2f.json --summary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: figma-capture
+          path: out/design.o2f.json

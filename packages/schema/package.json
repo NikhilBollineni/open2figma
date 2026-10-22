@@ -1,0 +1,19 @@
+{
+  "name": "@open2figma/schema",
+  "version": "0.1.0",
+  "description": "The O2F document format: a Figma-shaped intermediate representation of a rendered web page.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

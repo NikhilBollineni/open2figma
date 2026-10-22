@@ -1,0 +1,13 @@
+{
+  "name": "open2figma",
+  "id": "open2figma-dev",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["http://localhost:4747", "http://127.0.0.1:4747"],
+    "reasoning": "Pulls captured documents from the local open2figma bridge running on your machine."
+  }
+}

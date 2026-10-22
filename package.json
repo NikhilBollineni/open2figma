@@ -1,0 +1,22 @@
+{
+  "name": "open2figma",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source pipeline that turns any web page, component or Storybook into native, editable Figma designs.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @open2figma/schema -w @open2figma/extractor -w @open2figma/cli -w @open2figma/figma-plugin",
+    "test": "vitest run",
+    "typecheck": "tsc -b packages/schema packages/extractor packages/cli packages/figma-plugin",
+    "capture:example": "node packages/cli/dist/index.js capture examples/landing/index.html -o examples/landing/landing.o2f.json --viewport 1280x900"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.7.0",
+    "vitest": "^5.0.5"
+  }
+}

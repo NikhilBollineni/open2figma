@@ -1,0 +1,23 @@
+{
+  "name": "@open2figma/extractor",
+  "version": "0.1.0",
+  "description": "Renders a page in a real browser and extracts a Figma-shaped O2F document: auto-layout, text runs, images, SVG, tokens and components.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b && node build-walker.mjs"
+  },
+  "dependencies": {
+    "@open2figma/schema": "0.1.0",
+    "playwright": "^1.64.1"
+  }
+}

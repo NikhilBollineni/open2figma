@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; font: 12px/1.5 Inter, system-ui, sans-serif;
+    color: var(--figma-color-text); background: var(--figma-color-bg);
+  }
+  h1 { font-size: 14px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 14px; color: var(--figma-color-text-secondary); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--figma-color-border); margin-bottom: 12px; }
+  .tabs button {
+    background: none; border: 0; padding: 6px 10px; color: var(--figma-color-text-secondary);
+    border-bottom: 2px solid transparent; cursor: pointer; font: inherit;
+  }
+  .tabs button.active { color: var(--figma-color-text); border-color: var(--figma-color-bg-brand); }
+  .panel { display: none; } .panel.active { display: block; }
+  textarea, input[type=text] {
+    width: 100%; font: 11px/1.4 ui-monospace, Menlo, monospace; padding: 8px;
+    border: 1px solid var(--figma-color-border); border-radius: 4px;
+    background: var(--figma-color-bg-secondary); color: var(--figma-color-text);
+  }
+  textarea { height: 140px; resize: vertical; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  .row label { display: flex; gap: 6px; align-items: center; }
+  .drop {
+    border: 1px dashed var(--figma-color-border); border-radius: 6px; padding: 24px; text-align: center;
+    color: var(--figma-color-text-secondary); cursor: pointer;
+  }
+  .drop.over { border-color: var(--figma-color-bg-brand); color: var(--figma-color-text); }
+  button.primary {
+    width: 100%; padding: 9px; border: 0; border-radius: 6px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--figma-color-bg-brand); color: var(--figma-color-text-onbrand);
+  }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button.secondary {
+    padding: 6px 10px; border: 1px solid var(--figma-color-border); border-radius: 6px; font: inherit; cursor: pointer;
+    background: var(--figma-color-bg); color: var(--figma-color-text);
+  }
+  .opts { margin: 12px 0; display: grid; gap: 6px; }
+  .status { margin-top: 10px; min-height: 18px; color: var(--figma-color-text-secondary); }
+  .bar { height: 4px; background: var(--figma-color-bg-secondary); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; width: 0; background: var(--figma-color-bg-brand); transition: width .1s; }
+  .log {
+    margin-top: 10px; max-height: 150px; overflow: auto; font: 11px/1.4 ui-monospace, Menlo, monospace;
+    background: var(--figma-color-bg-secondary); border-radius: 4px; padding: 8px; white-space: pre-wrap;
+  }
+  .ok { color: var(--figma-color-text-success); } .err { color: var(--figma-color-text-danger); } .warn { color: var(--figma-color-text-warning); }
+  .preview { color: var(--figma-color-text-secondary); margin-top: 6px; }
+</style>
+</head>
+<body>
+  <h1>open2figma</h1>
+  <p class="sub">Import a captured page as native frames, auto-layout, text, images, components and variables.</p>
+
+  <div class="tabs">
+    <button class="active" data-tab="bridge">Local bridge</button>
+    <button data-tab="file">File</button>
+    <button data-tab="paste">Paste JSON</button>
+  </div>
+
+  <div class="panel active" id="bridge">
+    <div class="row">
+      <input type="text" id="bridgeUrl" value="http://localhost:4747" />
+      <button class="secondary" id="pull">Pull</button>
+    </div>
+    <div class="preview">Run <code>open2figma serve</code> (or <code>capture --push</code>) on your machine, then pull.</div>
+  </div>
+
+  <div class="panel" id="file">
+    <div class="drop" id="drop">Drop an <code>.o2f.json</code> file here or click to choose</div>
+    <input type="file" id="fileInput" accept=".json,application/json" style="display:none" />
+  </div>
+
+  <div class="panel" id="paste">
+    <textarea id="json" placeholder='{"version":1, ...}'></textarea>
+  </div>
+
+  <div class="preview" id="docInfo">No document loaded.</div>
+
+  <div class="opts">
+    <label><input type="checkbox" id="optComponents" checked /> Create components for repeated elements</label>
+    <label><input type="checkbox" id="optVariables" checked /> Create variables from CSS custom properties</label>
+    <label><input type="checkbox" id="optSection" checked /> Wrap frames in a section</label>
+    <label>Fallback font <input type="text" id="optFont" value="Inter" style="width:120px" /></label>
+  </div>
+
+  <button class="primary" id="import" disabled>Import into Figma</button>
+  <div class="status" id="status"></div>
+  <div class="bar"><div id="barFill"></div></div>
+  <div class="log" id="log" hidden></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let doc = null;
+
+  for (const b of document.querySelectorAll('.tabs button')) {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('active', x === b));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === b.dataset.tab));
+    });
+  }
+
+  function setDoc(d, origin) {
+    doc = d;
+    const nodes = d.breakpoints.reduce((n, bp) => n + count(bp.root), 0);
+    $('docInfo').innerHTML = `<b>${escape(d.source.title || 'untitled')}</b> · ${d.breakpoints.length} frame${d.breakpoints.length === 1 ? '' : 's'} · ${nodes} nodes · ${Object.keys(d.assets).length} images · ${d.tokens.length} tokens · ${Object.keys(d.components).length} components <span style="opacity:.7">(${origin})</span>`;
+    $('import').disabled = false;
+    status('');
+  }
+  function count(n) { return 1 + (n.children ? n.children.reduce((a, c) => a + count(c), 0) : 0); }
+  function escape(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+  function status(msg, cls) { $('status').textContent = msg; $('status').className = 'status ' + (cls || ''); }
+  function loadText(text, origin) {
+    try {
+      const d = JSON.parse(text);
+      if (!d || d.version !== 1 || !Array.isArray(d.breakpoints)) throw new Error('not an O2F v1 document');
+      setDoc(d, origin);
+    } catch (e) { status('Could not read document: ' + e.message, 'err'); }
+  }
+
+  $('pull').addEventListener('click', async () => {
+    status('Pulling…');
+    try {
+      const res = await fetch($('bridgeUrl').value.replace(/\/$/, '') + '/latest');
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || ('HTTP ' + res.status));
+      loadText(await res.text(), 'bridge');
+    } catch (e) { status('Bridge: ' + e.message + '. Is `open2figma serve` running?', 'err'); }
+  });
+
+  $('json').addEventListener('input', () => { if ($('json').value.trim()) loadText($('json').value, 'pasted'); });
+
+  const drop = $('drop');
+  drop.addEventListener('click', () => $('fileInput').click());
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); readFile(e.dataTransfer.files[0]); });
+  $('fileInput').addEventListener('change', (e) => readFile(e.target.files[0]));
+  function readFile(f) { if (!f) return; const r = new FileReader(); r.onload = () => loadText(r.result, f.name); r.readAsText(f); }
+
+  $('import').addEventListener('click', () => {
+    if (!doc) return;
+    $('import').disabled = true;
+    $('log').hidden = true;
+    status('Importing…');
+    parent.postMessage({ pluginMessage: { type: 'import', document: doc, options: {
+      createComponents: $('optComponents').checked,
+      createVariables: $('optVariables').checked,
+      useSection: $('optSection').checked,
+      fontFallback: $('optFont').value || 'Inter',
+    } } }, '*');
+  });
+
+  window.onmessage = (e) => {
+    const m = e.data.pluginMessage;
+    if (!m) return;
+    if (m.type === 'progress') {
+      $('barFill').style.width = (m.total ? (100 * m.done / m.total) : 0) + '%';
+      status(`${m.done}/${m.total} · ${m.label}`);
+    } else if (m.type === 'done') {
+      $('barFill').style.width = '100%';
+      $('import').disabled = false;
+      const r = m.report;
+      status(`Done in ${(m.ms / 1000).toFixed(1)}s: ${r.nodes} nodes, ${r.components} components, ${r.instances} instances, ${r.images} images, ${r.variables} variables.`, 'ok');
+      const lines = [];
+      for (const [from, to] of Object.entries(r.fontSubstitutions)) lines.push(`font: ${from} → ${to}`);
+      for (const w of r.warnings) lines.push(`warn: ${w}`);
+      if (lines.length) { $('log').hidden = false; $('log').textContent = lines.join('\n'); }
+    } else if (m.type === 'error') {
+      $('import').disabled = false;
+      status('Import failed: ' + m.message, 'err');
+      $('log').hidden = false; $('log').textContent = m.stack || m.message;
+    }
+  };
+</script>
+</body>
+</html>
