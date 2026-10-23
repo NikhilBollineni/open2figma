@@ -35,6 +35,40 @@ const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD', 'M
 const tagOf = (el: Element): string => el.tagName.toUpperCase();
 const REPLACED = new Set(['IMG', 'SVG', 'VIDEO', 'CANVAS', 'IFRAME', 'EMBED', 'OBJECT', 'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'PICTURE', 'AUDIO', 'PROGRESS', 'METER']);
 
+/**
+ * Modern sites (Tailwind v4, shadcn) author colours in oklch()/lab()/display-p3 and
+ * Chrome keeps that syntax in computed styles. A 2D canvas converts any CSS colour
+ * to sRGB for us, with gamut clipping, so we only hand-parse the common rgb() form.
+ */
+let colorCtx: CanvasRenderingContext2D | null | undefined;
+const colorCache = new Map<string, RGBA | null>();
+function toColor(input: string | null | undefined): RGBA | null {
+  if (!input) return null;
+  const direct = parseColor(input);
+  if (direct) return direct;
+  const cached = colorCache.get(input);
+  if (cached !== undefined) return cached;
+  if (colorCtx === undefined) colorCtx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  let out: RGBA | null = null;
+  if (colorCtx) {
+    colorCtx.fillStyle = '#000';
+    colorCtx.fillStyle = input;
+    const normalised = String(colorCtx.fillStyle);
+    out = normalised !== '#000000' || /^(#000|black|rgb\(0,? 0,? 0\))/i.test(input.trim()) ? parseColor(normalised) : null;
+    if (!out && colorCtx.fillStyle !== '#000000') out = parseColor(normalised);
+    if (!out) {
+      // canvas rejected it: draw one pixel and read it back
+      colorCtx.clearRect(0, 0, 1, 1);
+      colorCtx.fillStyle = input;
+      colorCtx.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = colorCtx.getImageData(0, 0, 1, 1).data;
+      out = a === 0 && !/transparent|\/\s*0\s*\)|,\s*0\s*\)$/.test(input) ? null : { r: r / 255, g: g / 255, b: b / 255, a: a / 255 };
+    }
+  }
+  colorCache.set(input, out);
+  return out;
+}
+
 class Walker {
   private idCounter = 0;
   private nodeCount = 0;
@@ -93,7 +127,7 @@ class Walker {
     frame.positioning = 'AUTO';
     if (isBody) {
       // CSS propagates the body background to the canvas; mirror that, default white.
-      const htmlBg = parseColor(getComputedStyle(document.documentElement).backgroundColor);
+      const htmlBg = toColor(getComputedStyle(document.documentElement).backgroundColor);
       if (!frame.fills.length) {
         if (isVisibleColor(htmlBg)) frame.fills.push({ type: 'SOLID', color: htmlBg });
         else frame.fills.push({ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } });
@@ -391,7 +425,7 @@ class Walker {
 
   private fillsOf(cs: CSSStyleDeclaration, box: Box): Fill[] {
     const fills: Fill[] = [];
-    const bg = parseColor(cs.backgroundColor);
+    const bg = toColor(cs.backgroundColor);
     if (isVisibleColor(bg)) fills.push(this.solid(bg));
     if (cs.backgroundImage && cs.backgroundImage !== 'none') {
       const layers = splitTopLevel(cs.backgroundImage);
@@ -412,7 +446,7 @@ class Walker {
         }
         const radial = layer.match(/^(repeating-)?(radial|conic)-gradient\((.*)\)$/s);
         if (radial) {
-          const stops = splitTopLevel(radial[3]).map((s) => parseColor(s.replace(/\s+-?[\d.]+(%|px|deg)\s*$/, ''))).filter(Boolean) as RGBA[];
+          const stops = splitTopLevel(radial[3]).map((s) => toColor(s.replace(/\s+-?[\d.]+(%|px|deg)\s*$/, ''))).filter(Boolean) as RGBA[];
           if (stops.length) {
             imageFills.push(this.solid(stops[0]));
             this.countWarn(`${radial[2]} gradient approximated with its first stop`);
@@ -432,10 +466,10 @@ class Walker {
 
   private strokesOf(cs: CSSStyleDeclaration): Stroke[] {
     const sides = {
-      top: { w: px(cs.borderTopWidth), c: parseColor(cs.borderTopColor), s: cs.borderTopStyle },
-      right: { w: px(cs.borderRightWidth), c: parseColor(cs.borderRightColor), s: cs.borderRightStyle },
-      bottom: { w: px(cs.borderBottomWidth), c: parseColor(cs.borderBottomColor), s: cs.borderBottomStyle },
-      left: { w: px(cs.borderLeftWidth), c: parseColor(cs.borderLeftColor), s: cs.borderLeftStyle },
+      top: { w: px(cs.borderTopWidth), c: toColor(cs.borderTopColor), s: cs.borderTopStyle },
+      right: { w: px(cs.borderRightWidth), c: toColor(cs.borderRightColor), s: cs.borderRightStyle },
+      bottom: { w: px(cs.borderBottomWidth), c: toColor(cs.borderBottomColor), s: cs.borderBottomStyle },
+      left: { w: px(cs.borderLeftWidth), c: toColor(cs.borderLeftColor), s: cs.borderLeftStyle },
     };
     const visible = Object.values(sides).filter((s) => s.w > 0 && s.s !== 'none' && s.s !== 'hidden' && isVisibleColor(s.c));
     if (!visible.length) return [];
@@ -492,7 +526,7 @@ class Walker {
       if (cs.display === 'none') continue;
       if (cs.display !== 'inline') return false;
       if (cs.position === 'absolute' || cs.position === 'fixed') return false;
-      if (isVisibleColor(parseColor(cs.backgroundColor)) || cs.backgroundImage !== 'none') return false;
+      if (isVisibleColor(toColor(cs.backgroundColor)) || cs.backgroundImage !== 'none') return false;
       if (px(cs.borderTopWidth) || px(cs.borderBottomWidth) || px(cs.borderLeftWidth) || px(cs.borderRightWidth)) return false;
       if (!this.isTextOnly(c)) return false;
       if ((c.textContent ?? '').trim()) sawText = true;
@@ -546,7 +580,7 @@ class Walker {
 
   private textStyle(cs: CSSStyleDeclaration): TextStyle {
     const stack = parseFontFamily(cs.fontFamily);
-    const color = parseColor(cs.color) ?? { r: 0, g: 0, b: 0, a: 1 };
+    const color = toColor(cs.color) ?? { r: 0, g: 0, b: 0, a: 1 };
     const token = this.tokenFor(color);
     const lh = cs.lineHeight === 'normal' ? undefined : px(cs.lineHeight);
     const style: TextStyle = {
@@ -593,10 +627,11 @@ class Walker {
     const tight = range.getBoundingClientRect();
     const lines = Math.max(1, range.getClientRects().length ? new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size : 1);
     const singleLine = lines === 1 && !runs.some((r) => r.characters.includes('\n'));
-    const hugsHeight = Math.abs(tight.height - box.height) <= 2;
-    const autoResize: TextNode['autoResize'] = singleLine && Math.abs(tight.width - box.width) <= 2 && hugsHeight
-      ? 'WIDTH_AND_HEIGHT'
-      : hugsHeight ? 'HEIGHT' : 'NONE';
+    // A single line whose box is no wider than its glyphs hugs its content, so a
+    // substituted font can never force a wrap. Wider boxes keep their width (the
+    // text-align then still applies) and let the height follow the content.
+    const hugsWidth = Math.abs(tight.width - box.width) <= 2;
+    const autoResize: TextNode['autoResize'] = singleLine && hugsWidth ? 'WIDTH_AND_HEIGHT' : 'HEIGHT';
     const node: TextNode = {
       id: this.nextId(),
       name: runs.map((r) => r.characters).join('').trim().slice(0, 40) || 'Text',
@@ -788,7 +823,7 @@ class Walker {
     const type = (el.type || 'text').toLowerCase();
     if (type === 'hidden') return null;
     if (type === 'checkbox' || type === 'radio') {
-      const accent = parseColor(cs.accentColor) ?? { r: 0.1, g: 0.4, b: 0.9, a: 1 };
+      const accent = toColor(cs.accentColor) ?? { r: 0.1, g: 0.4, b: 0.9, a: 1 };
       const fills: Fill[] = el.checked ? [this.solid(accent)] : [this.solid({ r: 1, g: 1, b: 1, a: 1 })];
       const node = this.rectLike(el, cs, box, parentAbs, fills, type);
       if (type === 'radio') node.type = 'ELLIPSE';
@@ -935,7 +970,7 @@ class Walker {
 
   private classifyToken(prop: string, raw: string, rem: number): Token {
     const name = prop.replace(/^--/, '').replace(/-/, '/');
-    const color = parseColor(raw);
+    const color = toColor(raw);
     if (color) return { name, type: 'COLOR', value: color, raw };
     const m = raw.match(/^(-?[\d.]+)(px|rem|em)$/);
     if (m) return { name, type: 'FLOAT', value: m[2] === 'px' ? parseFloat(m[1]) : parseFloat(m[1]) * rem, raw };

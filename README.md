@@ -58,7 +58,10 @@ The bundled example page captures in a few seconds:
 ```bash
 npm run capture:example
 node packages/cli/dist/index.js inspect examples/landing/landing.o2f.json --tree
+node packages/cli/dist/index.js inspect examples/landing/landing.o2f.json --html preview.html
 ```
+
+The HTML preview draws every node exactly as the plugin will build it, with a toggle that outlines auto-layout frames, absolute frames and components, so a capture can be checked without opening Figma.
 
 ## How the conversion works
 
@@ -90,6 +93,7 @@ open2figma storybook <url>         capture every story of a running Storybook
 
 open2figma serve [file]            local bridge for the plugin (port 4747)
 open2figma inspect <file> [--tree] summarise a document
+  --html <out>                     render a standalone HTML preview of what the plugin will build
 ```
 
 Programmatic use:

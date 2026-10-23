@@ -6,6 +6,7 @@ import { capture, captureStorybook, parseViewports } from '@open2figma/extractor
 import { validateDocument, type O2FDocument } from '@open2figma/schema';
 import { startBridge, pushDocument } from './serve.js';
 import { summarize, tree } from './inspect.js';
+import { renderHtml } from './preview.js';
 
 const program = new Command();
 program
@@ -113,9 +114,14 @@ program
   .description('Summarise an O2F document')
   .argument('<file>')
   .option('-t, --tree [depth]', 'print the node tree')
+  .option('--html <out>', 'render a standalone HTML preview of the document')
   .action(async (file: string, o) => {
     const doc = JSON.parse(await readFile(file, 'utf8')) as O2FDocument;
     const problems = validateDocument(doc);
+    if (o.html) {
+      await writeFile(o.html, renderHtml(doc));
+      log(`wrote preview ${o.html}`);
+    }
     process.stdout.write(summarize(doc) + '\n');
     if (problems.length) process.stdout.write(`\nvalidation problems:\n${problems.map((p) => `  - ${p}`).join('\n')}\n`);
     if (o.tree) process.stdout.write('\n' + tree(doc, o.tree === true ? 4 : parseInt(o.tree, 10)) + '\n');
