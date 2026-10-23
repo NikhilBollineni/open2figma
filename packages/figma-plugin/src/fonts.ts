@@ -27,9 +27,9 @@ export function styleIsItalic(style: string): boolean {
 
 const GENERIC: Record<string, string[]> = {
   'sans-serif': ['Inter', 'Roboto', 'Helvetica', 'Arial'],
-  'system-ui': ['Inter', 'SF Pro Text', 'Roboto', 'Helvetica'],
-  '-apple-system': ['SF Pro Text', 'Inter', 'Helvetica'],
-  blinkmacsystemfont: ['SF Pro Text', 'Inter', 'Helvetica'],
+  'system-ui': ['SF Pro Text', 'SF Pro', 'Segoe UI', 'Inter', 'Roboto', 'Helvetica'],
+  '-apple-system': ['SF Pro Text', 'SF Pro', 'Inter', 'Helvetica'],
+  blinkmacsystemfont: ['SF Pro Text', 'SF Pro', 'Inter', 'Helvetica'],
   'segoe ui': ['Segoe UI', 'Inter'],
   serif: ['Georgia', 'Times New Roman', 'Times'],
   monospace: ['Roboto Mono', 'SF Mono', 'Menlo', 'Courier New', 'Courier'],

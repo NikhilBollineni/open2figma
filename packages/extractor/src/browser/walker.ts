@@ -288,9 +288,19 @@ class Walker {
           sizingHorizontal: 'FIXED',
           sizingVertical: 'FIXED',
         };
-        text.sizingHorizontal = 'FILL';
-        text.sizingVertical = text.autoResize === 'NONE' ? 'FILL' : 'HUG';
-        if (text.autoResize !== 'NONE') frame.layout.sizingVertical = 'HUG';
+        if (text.autoResize === 'WIDTH_AND_HEIGHT') {
+          // a label hugging its glyphs (buttons, badges, links): grow with the font instead of wrapping
+          text.sizingHorizontal = 'HUG';
+          text.sizingVertical = 'HUG';
+          frame.layout.sizingHorizontal = 'HUG';
+          frame.layout.sizingVertical = 'HUG';
+          frame.layout.primaryAlign = 'CENTER';
+          frame.layout.counterAlign = 'CENTER';
+        } else {
+          text.sizingHorizontal = 'FILL';
+          text.sizingVertical = text.autoResize === 'NONE' ? 'FILL' : 'HUG';
+          if (text.autoResize !== 'NONE') frame.layout.sizingVertical = 'HUG';
+        }
         this.addMarker(el, cs, frame, box);
         return frame;
       }
@@ -579,7 +589,7 @@ class Walker {
   }
 
   private textStyle(cs: CSSStyleDeclaration): TextStyle {
-    const stack = parseFontFamily(cs.fontFamily);
+    const stack = resolveRenderedStack(parseFontFamily(cs.fontFamily));
     const color = toColor(cs.color) ?? { r: 0, g: 0, b: 0, a: 1 };
     const token = this.tokenFor(color);
     const lh = cs.lineHeight === 'normal' ? undefined : px(cs.lineHeight);
@@ -1028,6 +1038,67 @@ class Walker {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+
+const GENERIC_FONT = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded', 'math', 'emoji', '-apple-system', 'blinkmacsystemfont']);
+let fontProbe: CanvasRenderingContext2D | null | undefined;
+const fontAvailability = new Map<string, boolean>();
+
+/** True when the browser can render `family` itself rather than falling back. */
+function fontAvailable(family: string): boolean {
+  const cached = fontAvailability.get(family);
+  if (cached !== undefined) return cached;
+  if (fontProbe === undefined) fontProbe = document.createElement('canvas').getContext('2d');
+  let ok = false;
+  if (fontProbe) {
+    const sample = 'mmmmmmmmmmlli0123456789WWW';
+    const widthWith = (fallback: string) => {
+      fontProbe!.font = `32px "${family}", ${fallback}`;
+      return fontProbe!.measureText(sample).width;
+    };
+    fontProbe.font = '32px monospace';
+    const mono = fontProbe.measureText(sample).width;
+    fontProbe.font = '32px serif';
+    const serif = fontProbe.measureText(sample).width;
+    ok = widthWith('monospace') !== mono || widthWith('serif') !== serif;
+  }
+  fontAvailability.set(family, ok);
+  return ok;
+}
+
+/** The platform font Chrome substitutes for generic families, named the way Figma lists it. */
+function platformFont(generic: string): string {
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const win = /Win/.test(navigator.platform);
+  switch (generic) {
+    case 'monospace':
+    case 'ui-monospace':
+      return mac ? 'SF Mono' : win ? 'Consolas' : 'DejaVu Sans Mono';
+    case 'serif':
+    case 'ui-serif':
+      return mac ? 'Times' : win ? 'Times New Roman' : 'DejaVu Serif';
+    default:
+      return mac ? 'SF Pro Text' : win ? 'Segoe UI' : 'DejaVu Sans';
+  }
+}
+
+/**
+ * Moves the family that actually rendered to the front of the stack. The
+ * browser measured every box with that font, so the plugin should prefer it;
+ * the authored families stay behind it for designers who want to swap.
+ */
+function resolveRenderedStack(stack: string[]): string[] {
+  for (const family of stack) {
+    const lower = family.toLowerCase();
+    if (GENERIC_FONT.has(lower)) {
+      const concrete = platformFont(lower);
+      return [concrete, ...stack.filter((f) => f !== concrete)];
+    }
+    if (fontAvailable(family)) {
+      return [family, ...stack.filter((f) => f !== family)];
+    }
+  }
+  return stack;
+}
 
 function sameStyle(a: TextStyle, b: TextStyle): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
